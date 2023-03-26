@@ -402,7 +402,7 @@ static std::string GenerateDMCUPatch()
     if (dmcuTVViewport_576i.x.end != 0xffff) {
         patch += string_format("@0AAC 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
         patch += string_format("@1CF1 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
-        patch += string_format("@1E4B CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
+        patch += string_format("@1E4B CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
     }
 
     // DRC

@@ -6,12 +6,12 @@ jobs:
   build-binary:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@master
     - name: Build binary
       run: |
         docker build -t evwii_builder .
         docker run --rm -v ${PWD}:/project evwii_builder make
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@master
       with:
        name: evwii
        path: "*.wps"

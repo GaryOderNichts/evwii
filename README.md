@@ -7,6 +7,7 @@ Note that the plugin will not be active when booting vWii mode using the [Boot S
 ## Features
 - Allows enabling the 4 second power button press to force power off while in vWii mode.
 - Allows setting custom viewport values in the DMCU firmware. This can undo the forced cropping of overscan in vWii mode.
+- Allows fully replacing the DMCU firmware using a file loaded from the SD Card (`wiiu/dmcu.d.hex`).
 
 ## Examples
 **GamePad (viewport unchanged):**  

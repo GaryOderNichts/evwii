@@ -18,6 +18,7 @@ WUPS_PLUGIN_AUTHOR("GaryOderNichts");
 WUPS_PLUGIN_LICENSE("GPLv2");
 
 WUPS_USE_STORAGE("evWii");
+WUPS_USE_WUT_DEVOPTAB();
 
 struct DMCUViewportAxis {
     uint16_t start;
@@ -71,6 +72,8 @@ static std::pair<const char*, DMCUViewportAxis> viewportHeightPresetsDRC_576i[] 
 };
 
 static bool enable4sPower = true;
+
+static bool dmcuLoadFromSD = false;
 
 static DMCUViewport dmcuTVViewport = {
     { 8, 704, 720 },
@@ -151,6 +154,10 @@ INITIALIZE_PLUGIN()
             WUPS_StoreBool(nullptr, "enable4sPower", enable4sPower);
         }
 
+        if (WUPS_GetBool(nullptr, "dmcuLoadFromSD", &dmcuLoadFromSD) == WUPS_STORAGE_ERROR_NOT_FOUND) {
+            WUPS_StoreBool(nullptr, "dmcuLoadFromSD", dmcuLoadFromSD);
+        }
+
         WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
         WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
         WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xEnd", dmcuTVViewport.x.end);
@@ -200,6 +207,13 @@ void enable4sPowerCallback(ConfigItemBoolean* item, bool enabled)
         Restore_vWii_RTC_CONTROL1();
     }
 }
+
+void dmcuLoadFromSDCallback(ConfigItemBoolean* item, bool enabled)
+{
+    dmcuLoadFromSD = enabled;
+    WUPS_StoreBool(nullptr, "dmcuLoadFromSD", enabled);
+}
+
 
 void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
 {
@@ -289,6 +303,8 @@ WUPS_GET_CONFIG()
 
     WUPSConfigCategoryHandle catDmcu;
     WUPSConfig_AddCategoryByNameHandled(config, "DMCU", &catDmcu);
+
+    WUPSConfigItemBoolean_AddToCategoryHandled(config, catDmcu, "dmcuLoadFromSD", "Load DMCU Firmware from SD Card", dmcuLoadFromSD, dmcuLoadFromSDCallback);
 
     Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuTVViewportWidth", "TV Viewport Width", viewportWidthPresetsTV, dmcuTVViewport.x);
     Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuTVViewportHeight", "TV Viewport Height", viewportHeightPresetsTV, dmcuTVViewport.y);
@@ -483,8 +499,48 @@ static std::string GenerateDMCUPatch()
     return patch;
 }
 
+// #define LOAD_BUNDLED_DMCU_FW
+#ifdef LOAD_BUNDLED_DMCU_FW
+#include <dmcu_d_hex.h>
+#endif
+
 DECL_FUNCTION(MCPError, MCP_CompatLoadAVFile, int32_t handle, void *ptr, uint32_t *size, MCPCompatAVFile file)
 {
+#ifdef LOAD_BUNDLED_DMCU_FW
+    if (file == MCP_COMPAT_AV_FILE_DMCU) {
+        if (ptr) {
+            memcpy(ptr, dmcu_d_hex, dmcu_d_hex_size);
+        }
+
+        *size = dmcu_d_hex_size;
+        return 0;
+    }
+#endif
+
+    // Check if we should replace the DMCU firmware completely
+    if (file == MCP_COMPAT_AV_FILE_DMCU && dmcuLoadFromSD) {
+        FILE* f = fopen("/vol/external01/wiiu/dmcu.d.hex", "rb");
+        if (!f) {
+            return -1;
+        }
+
+        fseek(f, 0, SEEK_END);
+        size_t dmcu_fw_size = ftell(f);
+        rewind(f);
+
+        if (ptr) {
+            if (fread(ptr, 1, dmcu_fw_size, f) != dmcu_fw_size) {
+                fclose(f);
+                return -1;
+            }
+        }
+
+        *size = dmcu_fw_size;
+
+        fclose(f);
+        return 0;
+    }
+
     MCPError res = real_MCP_CompatLoadAVFile(handle, ptr, size, file);
     if (res < 0 || file != MCP_COMPAT_AV_FILE_DMCU) {
         return res;

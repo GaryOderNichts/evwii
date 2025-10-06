@@ -18,13 +18,13 @@ Note that the plugin will not be active when booting vWii mode using the [Boot S
 
 *Note:* These are not actual GamePad captures, but visualizations of what viewport adjustments do.
 
-## Bulding
+## Building
 For building you need: 
 - [wups](https://github.com/wiiu-env/WiiUPluginSystem)
 - [wut](https://github.com/devkitPro/wut)
 - [libmocha](https://github.com/wiiu-env/libmocha)
 
-You can also build evwii using docker:
+You can also build evWii using Docker:
 ```
 # Build docker image (only needed once)
 docker build . -t evwii_builder

@@ -153,7 +153,8 @@ void Restore_vWii_RTC_CONTROL1(void)
         __value__ = tmp;                                                                  \
 }}
 
-INITIALIZE_PLUGIN() {
+INITIALIZE_PLUGIN()
+{
     WUPSConfigAPIOptionsV1 configOptions = {.name = "evWii"};
     if (WUPSConfigAPI_Init(configOptions, ConfigMenuOpenedCallback, ConfigMenuClosedCallback) !=
         WUPSCONFIG_API_RESULT_SUCCESS)
@@ -163,7 +164,6 @@ INITIALIZE_PLUGIN() {
 
     WUPSStorageAPI::GetOrStoreDefault("enable4sPower", enable4sPower, enable4sPower);
     WUPSStorageAPI::GetOrStoreDefault("dmcuLoadFromSD", dmcuLoadFromSD, dmcuLoadFromSD);
-
 
     WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
     WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
@@ -220,7 +220,6 @@ void dmcuLoadFromSDCallback(ConfigItemBoolean* item, bool enabled)
     WUPSStorageAPI::Store("dmcuLoadFromSD", enabled);
 }
 
-
 void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
 {
     if (i == 0xffff) {
@@ -276,27 +275,31 @@ void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
 
 WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identifier, const char* displayName,
                                                               const std::span<const std::pair<const char*, DMCUViewportAxis>> presets,
-                                                              DMCUViewportAxis curValue) {
+                                                              DMCUViewportAxis curValue)
+{
     uint32_t numPairs = presets.size();
     int curIdx = -1;
     std::vector<WUPSConfigItemMultipleValues::ValuePair> pairs(numPairs + 1);
+
     for (uint32_t i = 0; i < numPairs; i++) {
         pairs[i].value = i;
-        pairs[i].name = (char*)presets[i].first;
-        if (curValue == presets[i].second)
+        pairs[i].name = presets[i].first;
+        if (curValue == presets[i].second) {
             curIdx = i;
+        }
     }
+
     if (curIdx == -1) {
         curIdx = numPairs;
         pairs[numPairs].value = 0xffff;
-        pairs[numPairs].name = (char*)"Custom";
+        pairs[numPairs].name = "Custom";
     }
 
     return WUPSConfigItemMultipleValues::CreateFromIndex(identifier, displayName, 0, curIdx, pairs, selectDMCUViewportCallback);
 }
 
-
-WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle) {
+WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle)
+{
     WUPSConfigCategory root = WUPSConfigCategory(rootHandle);
 
     try {
@@ -345,7 +348,8 @@ WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle ro
     return WUPSCONFIG_API_CALLBACK_RESULT_SUCCESS;
 }
 
-void ConfigMenuClosedCallback() {
+void ConfigMenuClosedCallback()
+{
     WUPSStorageAPI::SaveStorage();
 }
 

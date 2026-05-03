@@ -279,7 +279,7 @@ WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identi
 {
     uint32_t numPairs = presets.size();
     int curIdx = -1;
-    std::vector<WUPSConfigItemMultipleValues::ValuePair> pairs(numPairs + 1);
+    std::vector<WUPSConfigItemMultipleValues::ValuePair> pairs(numPairs);
 
     for (uint32_t i = 0; i < numPairs; i++) {
         pairs[i].value = i;
@@ -291,8 +291,10 @@ WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identi
 
     if (curIdx == -1) {
         curIdx = numPairs;
-        pairs[numPairs].value = 0xffff;
-        pairs[numPairs].name = "Custom";
+
+        auto& customPair = pairs.emplace_back();
+        customPair.value = 0xffff;
+        customPair.name = "Custom";
     }
 
     return WUPSConfigItemMultipleValues::CreateFromIndex(identifier, displayName, 0, curIdx, pairs, selectDMCUViewportCallback);

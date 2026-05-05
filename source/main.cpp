@@ -226,49 +226,53 @@ void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
 
     if (strcmp(item->identifier, "dmcuTVViewportWidth") == 0) {
         dmcuTVViewport.x = viewportWidthPresetsTV[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuTV_xStart", dmcuTVViewport.x.start);
+        WUPSStorageAPI::Store<int>("dmcuTV_xEnd", dmcuTVViewport.x.end);
+        WUPSStorageAPI::Store<int>("dmcuTV_xSize", dmcuTVViewport.x.size);
     } else if (strcmp(item->identifier, "dmcuTVViewportHeight") == 0) {
         dmcuTVViewport.y = viewportHeightPresetsTV[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuTV_yStart", dmcuTVViewport.y.start);
+        WUPSStorageAPI::Store<int>("dmcuTV_yEnd", dmcuTVViewport.y.end);
+        WUPSStorageAPI::Store<int>("dmcuTV_ySize", dmcuTVViewport.y.size);
     } else if (strcmp(item->identifier, "dmcuTVViewportWidth576i") == 0) {
         dmcuTVViewport_576i.x = viewportWidthPresetsTV[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
+        WUPSStorageAPI::Store<int>("dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
+        WUPSStorageAPI::Store<int>("dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
     } else if (strcmp(item->identifier, "dmcuTVViewportHeight576i") == 0) {
         dmcuTVViewport_576i.y = viewportHeightPresetsTV_576i[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
+        WUPSStorageAPI::Store<int>("dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
+        WUPSStorageAPI::Store<int>("dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
     } else if (strcmp(item->identifier, "dmcuDRCViewportWidth") == 0) {
         dmcuDRCViewport.x = viewportWidthPresetsDRC[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuDRC_xStart", dmcuDRCViewport.x.start);
+        WUPSStorageAPI::Store<int>("dmcuDRC_xEnd", dmcuDRCViewport.x.end);
+        WUPSStorageAPI::Store<int>("dmcuDRC_xSize", dmcuDRCViewport.x.size);
     } else if (strcmp(item->identifier, "dmcuDRCViewportHeight") == 0) {
         dmcuDRCViewport.y = viewportHeightPresetsDRC[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuDRC_yStart", dmcuDRCViewport.y.start);
+        WUPSStorageAPI::Store<int>("dmcuDRC_yEnd", dmcuDRCViewport.y.end);
+        WUPSStorageAPI::Store<int>("dmcuDRC_ySize", dmcuDRCViewport.y.size);
     } else if (strcmp(item->identifier, "dmcuDRCViewportWidth576i") == 0) {
         dmcuDRCViewport_576i.x = viewportWidthPresetsDRC[i].second;
+
+        WUPSStorageAPI::Store<int>("dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
+        WUPSStorageAPI::Store<int>("dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
+        WUPSStorageAPI::Store<int>("dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
     } else if (strcmp(item->identifier, "dmcuDRCViewportHeight576i") == 0) {
         dmcuDRCViewport_576i.y = viewportHeightPresetsDRC_576i[i].second;
+    
+        WUPSStorageAPI::Store<int>("dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
+        WUPSStorageAPI::Store<int>("dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
+        WUPSStorageAPI::Store<int>("dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
     }
-
-    WUPSStorageAPI::Store<int>("dmcuTV_xStart", dmcuTVViewport.x.start);
-    WUPSStorageAPI::Store<int>("dmcuTV_yStart", dmcuTVViewport.y.start);
-    WUPSStorageAPI::Store<int>("dmcuTV_xEnd", dmcuTVViewport.x.end);
-    WUPSStorageAPI::Store<int>("dmcuTV_yEnd", dmcuTVViewport.y.end);
-    WUPSStorageAPI::Store<int>("dmcuTV_xSize", dmcuTVViewport.x.size);
-    WUPSStorageAPI::Store<int>("dmcuTV_ySize", dmcuTVViewport.y.size);
-
-    WUPSStorageAPI::Store<int>("dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
-    WUPSStorageAPI::Store<int>("dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
-    WUPSStorageAPI::Store<int>("dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
-    WUPSStorageAPI::Store<int>("dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
-    WUPSStorageAPI::Store<int>("dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
-    WUPSStorageAPI::Store<int>("dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
-
-    WUPSStorageAPI::Store<int>("dmcuDRC_xStart", dmcuDRCViewport.x.start);
-    WUPSStorageAPI::Store<int>("dmcuDRC_yStart", dmcuDRCViewport.y.start);
-    WUPSStorageAPI::Store<int>("dmcuDRC_xEnd", dmcuDRCViewport.x.end);
-    WUPSStorageAPI::Store<int>("dmcuDRC_yEnd", dmcuDRCViewport.y.end);
-    WUPSStorageAPI::Store<int>("dmcuDRC_xSize", dmcuDRCViewport.x.size);
-    WUPSStorageAPI::Store<int>("dmcuDRC_ySize", dmcuDRCViewport.y.size);
-
-    WUPSStorageAPI::Store<int>("dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
-    WUPSStorageAPI::Store<int>("dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
-    WUPSStorageAPI::Store<int>("dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
-    WUPSStorageAPI::Store<int>("dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
-    WUPSStorageAPI::Store<int>("dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
-    WUPSStorageAPI::Store<int>("dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
 }
 
 WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identifier, const char* displayName,

@@ -4,12 +4,14 @@
 #include <cstring>
 
 #include <wups.h>
+#include <wups/config_api.h>
 #include <wups/config/WUPSConfigItemBoolean.h>
 #include <wups/config/WUPSConfigItemMultipleValues.h>
 
 #include <mocha/mocha.h>
 
 #include <coreinit/mcp.h>
+#include <coreinit/debug.h>
 
 WUPS_PLUGIN_NAME("evWii");
 WUPS_PLUGIN_DESCRIPTION("Patches to enhance the vWii mode");
@@ -19,6 +21,9 @@ WUPS_PLUGIN_LICENSE("GPLv2");
 
 WUPS_USE_STORAGE("evWii");
 WUPS_USE_WUT_DEVOPTAB();
+
+WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle);
+void ConfigMenuClosedCallback();
 
 struct DMCUViewportAxis {
     uint16_t start;
@@ -137,57 +142,56 @@ void Restore_vWii_RTC_CONTROL1(void)
     Mocha_DeInitLibrary();
 }
 
-#define WUPS_ReadUShortWithDefault(__parent__, __key__, __value__) {{           \
-    int tmp = 0;                                                                \
-    if (WUPS_GetInt(__parent__, __key__, &tmp) == WUPS_STORAGE_ERROR_NOT_FOUND) \
-        WUPS_StoreInt(__parent__, __key__, __value__);                          \
-    else                                                                        \
-        __value__ = tmp;                                                        \
+#define WUPS_ReadUShortWithDefault(__parent__, __key__, __value__) {{                     \
+    int tmp = 0;                                                                          \
+    if (WUPSStorageAPI::GetEx(__parent__, __key__, tmp) == WUPS_STORAGE_ERROR_NOT_FOUND){ \
+        tmp = __value__;                                                                  \
+        WUPSStorageAPI::StoreEx(__parent__, __key__, tmp);                                \
+    } else                                                                                \
+        __value__ = tmp;                                                                  \
 }}
 
 INITIALIZE_PLUGIN()
 {
-    if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
-        // Try to get value from storage
-        if (WUPS_GetBool(nullptr, "enable4sPower", &enable4sPower) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-            // Add the value to the storage if it's missing.
-            WUPS_StoreBool(nullptr, "enable4sPower", enable4sPower);
-        }
-
-        if (WUPS_GetBool(nullptr, "dmcuLoadFromSD", &dmcuLoadFromSD) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-            WUPS_StoreBool(nullptr, "dmcuLoadFromSD", dmcuLoadFromSD);
-        }
-
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xEnd", dmcuTVViewport.x.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yEnd", dmcuTVViewport.y.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xSize", dmcuTVViewport.x.size);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_ySize", dmcuTVViewport.y.size);
-
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
-
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xStart", dmcuDRCViewport.x.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_yStart", dmcuDRCViewport.y.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xEnd", dmcuDRCViewport.x.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_yEnd", dmcuDRCViewport.y.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xSize", dmcuDRCViewport.x.size);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_ySize", dmcuDRCViewport.y.size);
-
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
-        WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
-
-        WUPS_CloseStorage();
+    WUPSConfigAPIOptionsV1 configOptions = {.name = "evWii"};
+    if (WUPSConfigAPI_Init(configOptions, ConfigMenuOpenedCallback, ConfigMenuClosedCallback) !=
+        WUPSCONFIG_API_RESULT_SUCCESS)
+    {
+        OSReport("evWii: Failed to init config api\n");
     }
+
+    WUPSStorageAPI::GetOrStoreDefault("enable4sPower", enable4sPower, enable4sPower);
+    WUPSStorageAPI::GetOrStoreDefault("dmcuLoadFromSD", dmcuLoadFromSD, dmcuLoadFromSD);
+
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xEnd", dmcuTVViewport.x.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yEnd", dmcuTVViewport.y.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xSize", dmcuTVViewport.x.size);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_ySize", dmcuTVViewport.y.size);
+
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
+
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xStart", dmcuDRCViewport.x.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_yStart", dmcuDRCViewport.y.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xEnd", dmcuDRCViewport.x.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_yEnd", dmcuDRCViewport.y.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xSize", dmcuDRCViewport.x.size);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_ySize", dmcuDRCViewport.y.size);
+
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
+    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
+
+    WUPSStorageAPI::SaveStorage();
 
     if (enable4sPower) {
         Patch_vWii_RTC_CONTROL1();
@@ -199,7 +203,7 @@ INITIALIZE_PLUGIN()
 void enable4sPowerCallback(ConfigItemBoolean* item, bool enabled)
 {
     enable4sPower = enabled;
-    WUPS_StoreBool(nullptr, "enable4sPower", enabled);
+    WUPSStorageAPI::Store("enable4sPower", enabled);
 
     if (enable4sPower) {
         Patch_vWii_RTC_CONTROL1();
@@ -211,9 +215,8 @@ void enable4sPowerCallback(ConfigItemBoolean* item, bool enabled)
 void dmcuLoadFromSDCallback(ConfigItemBoolean* item, bool enabled)
 {
     dmcuLoadFromSD = enabled;
-    WUPS_StoreBool(nullptr, "dmcuLoadFromSD", enabled);
+    WUPSStorageAPI::Store("dmcuLoadFromSD", enabled);
 }
-
 
 void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
 {
@@ -221,107 +224,133 @@ void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
         return;
     }
 
-    if (strcmp(item->configId, "dmcuTVViewportWidth") == 0) {
+    if (strcmp(item->identifier, "dmcuTVViewportWidth") == 0) {
         dmcuTVViewport.x = viewportWidthPresetsTV[i].second;
-    } else if (strcmp(item->configId, "dmcuTVViewportHeight") == 0) {
+    } else if (strcmp(item->identifier, "dmcuTVViewportHeight") == 0) {
         dmcuTVViewport.y = viewportHeightPresetsTV[i].second;
-    } else if (strcmp(item->configId, "dmcuTVViewportWidth576i") == 0) {
+    } else if (strcmp(item->identifier, "dmcuTVViewportWidth576i") == 0) {
         dmcuTVViewport_576i.x = viewportWidthPresetsTV[i].second;
-    } else if (strcmp(item->configId, "dmcuTVViewportHeight576i") == 0) {
+    } else if (strcmp(item->identifier, "dmcuTVViewportHeight576i") == 0) {
         dmcuTVViewport_576i.y = viewportHeightPresetsTV_576i[i].second;
-    } else if (strcmp(item->configId, "dmcuDRCViewportWidth") == 0) {
+    } else if (strcmp(item->identifier, "dmcuDRCViewportWidth") == 0) {
         dmcuDRCViewport.x = viewportWidthPresetsDRC[i].second;
-    } else if (strcmp(item->configId, "dmcuDRCViewportHeight") == 0) {
+    } else if (strcmp(item->identifier, "dmcuDRCViewportHeight") == 0) {
         dmcuDRCViewport.y = viewportHeightPresetsDRC[i].second;
-    } else if (strcmp(item->configId, "dmcuDRCViewportWidth576i") == 0) {
+    } else if (strcmp(item->identifier, "dmcuDRCViewportWidth576i") == 0) {
         dmcuDRCViewport_576i.x = viewportWidthPresetsDRC[i].second;
-    } else if (strcmp(item->configId, "dmcuDRCViewportHeight576i") == 0) {
+    } else if (strcmp(item->identifier, "dmcuDRCViewportHeight576i") == 0) {
         dmcuDRCViewport_576i.y = viewportHeightPresetsDRC_576i[i].second;
     }
 
-    WUPS_StoreInt(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
-    WUPS_StoreInt(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
-    WUPS_StoreInt(nullptr, "dmcuTV_xEnd", dmcuTVViewport.x.end);
-    WUPS_StoreInt(nullptr, "dmcuTV_yEnd", dmcuTVViewport.y.end);
-    WUPS_StoreInt(nullptr, "dmcuTV_xSize", dmcuTVViewport.x.size);
-    WUPS_StoreInt(nullptr, "dmcuTV_ySize", dmcuTVViewport.y.size);
+    WUPSStorageAPI::Store<int>("dmcuTV_xStart", dmcuTVViewport.x.start);
+    WUPSStorageAPI::Store<int>("dmcuTV_yStart", dmcuTVViewport.y.start);
+    WUPSStorageAPI::Store<int>("dmcuTV_xEnd", dmcuTVViewport.x.end);
+    WUPSStorageAPI::Store<int>("dmcuTV_yEnd", dmcuTVViewport.y.end);
+    WUPSStorageAPI::Store<int>("dmcuTV_xSize", dmcuTVViewport.x.size);
+    WUPSStorageAPI::Store<int>("dmcuTV_ySize", dmcuTVViewport.y.size);
 
-    WUPS_StoreInt(nullptr, "dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
-    WUPS_StoreInt(nullptr, "dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
-    WUPS_StoreInt(nullptr, "dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
-    WUPS_StoreInt(nullptr, "dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
-    WUPS_StoreInt(nullptr, "dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
-    WUPS_StoreInt(nullptr, "dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
+    WUPSStorageAPI::Store<int>("dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
+    WUPSStorageAPI::Store<int>("dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
+    WUPSStorageAPI::Store<int>("dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
+    WUPSStorageAPI::Store<int>("dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
+    WUPSStorageAPI::Store<int>("dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
+    WUPSStorageAPI::Store<int>("dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
 
-    WUPS_StoreInt(nullptr, "dmcuDRC_xStart", dmcuDRCViewport.x.start);
-    WUPS_StoreInt(nullptr, "dmcuDRC_yStart", dmcuDRCViewport.y.start);
-    WUPS_StoreInt(nullptr, "dmcuDRC_xEnd", dmcuDRCViewport.x.end);
-    WUPS_StoreInt(nullptr, "dmcuDRC_yEnd", dmcuDRCViewport.y.end);
-    WUPS_StoreInt(nullptr, "dmcuDRC_xSize", dmcuDRCViewport.x.size);
-    WUPS_StoreInt(nullptr, "dmcuDRC_ySize", dmcuDRCViewport.y.size);
+    WUPSStorageAPI::Store<int>("dmcuDRC_xStart", dmcuDRCViewport.x.start);
+    WUPSStorageAPI::Store<int>("dmcuDRC_yStart", dmcuDRCViewport.y.start);
+    WUPSStorageAPI::Store<int>("dmcuDRC_xEnd", dmcuDRCViewport.x.end);
+    WUPSStorageAPI::Store<int>("dmcuDRC_yEnd", dmcuDRCViewport.y.end);
+    WUPSStorageAPI::Store<int>("dmcuDRC_xSize", dmcuDRCViewport.x.size);
+    WUPSStorageAPI::Store<int>("dmcuDRC_ySize", dmcuDRCViewport.y.size);
 
-    WUPS_StoreInt(nullptr, "dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
-    WUPS_StoreInt(nullptr, "dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
-    WUPS_StoreInt(nullptr, "dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
-    WUPS_StoreInt(nullptr, "dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
-    WUPS_StoreInt(nullptr, "dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
-    WUPS_StoreInt(nullptr, "dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
+    WUPSStorageAPI::Store<int>("dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
+    WUPSStorageAPI::Store<int>("dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
+    WUPSStorageAPI::Store<int>("dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
+    WUPSStorageAPI::Store<int>("dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
+    WUPSStorageAPI::Store<int>("dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
+    WUPSStorageAPI::Store<int>("dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
 }
 
-#define Config_addDmcuViewportAxisPresets(__config__, __cat__, __configId__, __displayName__, __presets__, __cur__) {{                                          \
-    uint32_t numPairs = sizeof(__presets__) / sizeof(__presets__[0]);                                                                                           \
-    int curIdx = -1;                                                                                                                                            \
-    ConfigItemMultipleValuesPair pairs[numPairs + 1];                                                                                                           \
-    for (uint32_t i = 0; i < numPairs; i++) {                                                                                                                   \
-        pairs[i].value = i;                                                                                                                                     \
-        pairs[i].valueName = (char*) __presets__[i].first;                                                                                                      \
-        if (__cur__ == __presets__[i].second)                                                                                                                   \
-            curIdx = i;                                                                                                                                         \
-    }                                                                                                                                                           \
-    if (curIdx == -1) {                                                                                                                                         \
-        curIdx = numPairs;                                                                                                                                      \
-        pairs[numPairs].value = 0xffff;                                                                                                                         \
-        pairs[numPairs].valueName = (char*) "Custom";                                                                                                           \
-        numPairs++;                                                                                                                                             \
-    }                                                                                                                                                           \
-    WUPSConfigItemMultipleValues_AddToCategoryHandled(__config__, __cat__, __configId__, __displayName__, curIdx, pairs, numPairs, selectDMCUViewportCallback); \
-}}
-
-WUPS_GET_CONFIG()
+WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identifier, const char* displayName,
+                                                              const std::span<const std::pair<const char*, DMCUViewportAxis>> presets,
+                                                              DMCUViewportAxis curValue)
 {
-    if (WUPS_OpenStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
-        return 0;
+    uint32_t numPairs = presets.size();
+    int curIdx = -1;
+    std::vector<WUPSConfigItemMultipleValues::ValuePair> pairs(numPairs);
+
+    for (uint32_t i = 0; i < numPairs; i++) {
+        pairs[i].value = i;
+        pairs[i].name = presets[i].first;
+        if (curValue == presets[i].second) {
+            curIdx = i;
+        }
     }
 
-    WUPSConfigHandle config;
-    WUPSConfig_CreateHandled(&config, "evWii");
+    if (curIdx == -1) {
+        curIdx = numPairs;
 
-    WUPSConfigCategoryHandle catGeneral;
-    WUPSConfig_AddCategoryByNameHandled(config, "General", &catGeneral);
+        auto& customPair = pairs.emplace_back();
+        customPair.value = 0xffff;
+        customPair.name = "Custom";
+    }
 
-    WUPSConfigItemBoolean_AddToCategoryHandled(config, catGeneral, "enable4sPower", "Enable 4 second power press", enable4sPower, enable4sPowerCallback);
-
-    WUPSConfigCategoryHandle catDmcu;
-    WUPSConfig_AddCategoryByNameHandled(config, "DMCU", &catDmcu);
-
-    WUPSConfigItemBoolean_AddToCategoryHandled(config, catDmcu, "dmcuLoadFromSD", "Load DMCU Firmware from SD Card", dmcuLoadFromSD, dmcuLoadFromSDCallback);
-
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuTVViewportWidth", "TV Viewport Width", viewportWidthPresetsTV, dmcuTVViewport.x);
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuTVViewportHeight", "TV Viewport Height", viewportHeightPresetsTV, dmcuTVViewport.y);
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuTVViewportWidth576i", "TV Viewport Width (576i)", viewportWidthPresetsTV, dmcuTVViewport_576i.x);
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuTVViewportHeight576i", "TV Viewport Height (576i)", viewportHeightPresetsTV_576i, dmcuTVViewport_576i.y);
-
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuDRCViewportWidth", "DRC Viewport Width", viewportWidthPresetsDRC, dmcuDRCViewport.x);
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuDRCViewportHeight", "DRC Viewport Height", viewportHeightPresetsDRC, dmcuDRCViewport.y);
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuDRCViewportWidth576i", "DRC Viewport Width (576i)", viewportWidthPresetsDRC, dmcuDRCViewport_576i.x);
-    Config_addDmcuViewportAxisPresets(config, catDmcu, "dmcuDRCViewportHeight576i", "DRC Viewport Height (576i)", viewportHeightPresetsDRC_576i, dmcuDRCViewport_576i.y);
-
-    return config;
+    return WUPSConfigItemMultipleValues::CreateFromIndex(identifier, displayName, 0, curIdx, pairs, selectDMCUViewportCallback);
 }
 
-WUPS_CONFIG_CLOSED()
+WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle)
 {
-    WUPS_CloseStorage();
+    WUPSConfigCategory root = WUPSConfigCategory(rootHandle);
+
+    try {
+        auto generalCat = WUPSConfigCategory::Create("General");
+
+        generalCat.add(WUPSConfigItemBoolean::Create("enable4sPower", "Enable 4 second power press",
+                                                     true,
+                                                     enable4sPower,
+                                                     enable4sPowerCallback));
+
+        generalCat.add(WUPSConfigItemBoolean::Create("dmcuLoadFromSD", "Load DMCU Firmware from SD Card",
+                                                     true,
+                                                     dmcuLoadFromSD,
+                                                     dmcuLoadFromSDCallback));
+
+
+        auto dcmuCat = WUPSConfigCategory::Create("DMCU");
+
+
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportWidth", "TV Viewport Width",
+                                                     viewportWidthPresetsTV, dmcuTVViewport.x));
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportHeight", "TV Viewport Height",
+                                                     viewportHeightPresetsTV, dmcuTVViewport.y));
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportWidth576i", "TV Viewport Width (576i)",
+                                                     viewportWidthPresetsTV, dmcuTVViewport_576i.x));
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportHeight576i", "TV Viewport Height (576i)",
+                                                     viewportHeightPresetsTV_576i, dmcuTVViewport_576i.y));
+
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportWidth", "DRC Viewport Width",
+                                                     viewportWidthPresetsDRC, dmcuDRCViewport.x));
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportHeight", "DRC Viewport Height",
+                                                     viewportHeightPresetsDRC, dmcuDRCViewport.y));
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportWidth576i", "DRC Viewport Width (576i)",
+                                                     viewportWidthPresetsDRC, dmcuDRCViewport_576i.x));
+        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportHeight576i", "DRC Viewport Height (576i)",
+                                                     viewportHeightPresetsDRC_576i, dmcuDRCViewport_576i.y));
+
+        root.add(std::move(generalCat));
+        root.add(std::move(dcmuCat));
+    }
+    catch (std::exception& e) {
+        OSReport("evWii: Creating config menu failed: %s\n", e.what());
+        return WUPSCONFIG_API_CALLBACK_RESULT_ERROR;
+    }
+
+    return WUPSCONFIG_API_CALLBACK_RESULT_SUCCESS;
+}
+
+void ConfigMenuClosedCallback()
+{
+    WUPSStorageAPI::SaveStorage();
 }
 
 template<typename ...Args> std::string string_format(const std::string& format, Args ...args)

@@ -13,8 +13,6 @@
 #include <coreinit/mcp.h>
 #include <coreinit/debug.h>
 
-#include <span>
-
 WUPS_PLUGIN_NAME("evWii");
 WUPS_PLUGIN_DESCRIPTION("Patches to enhance the vWii mode");
 WUPS_PLUGIN_VERSION("v0.3");

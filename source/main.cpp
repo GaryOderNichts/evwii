@@ -387,7 +387,7 @@ static std::string GenerateDMCUPatch()
         patch += string_format("@0A11 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
         patch += string_format("@0AE5 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
         patch += string_format("@1C61 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
-        patch += string_format("@1DE3 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.start));
+        patch += string_format("@1DE3 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
     }
 
     if (dmcuTVViewport.y.size != 0xffff) {

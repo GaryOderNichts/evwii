@@ -6,7 +6,7 @@ Note that the plugin will not be active when booting vWii mode using the [Boot S
 
 ## Features
 - Allows enabling the 4 second power button press to force power off while in vWii mode.
-- Allows setting custom viewport values in the DMCU firmware. This can undo the forced cropping of overscan in vWii mode.
+- Allows setting custom viewport values in the DMCU firmware. This can undo the forced cropping of overscan in vWii mode. The TV viewport has fine, centered presets (width 720 to 640 and height 480/576i down to 432/480 in steps of 4 to 8 px), so the image can be zoomed just enough to hide the black borders without editing the JSON.
 - Allows fully replacing the DMCU firmware using a file loaded from the SD Card (`wiiu/dmcu.d.hex`).
 
 ## Examples

@@ -6,7 +6,9 @@ Note that the plugin will not be active when booting vWii mode using the [Boot S
 
 ## Features
 - Allows enabling the 4 second power button press to force power off while in vWii mode.
+- Allows using [OpenDMCUFirm](https://github.com/GaryOderNichts/OpenDMCUFirm) as the DMCU firmware, which features several improvements over the default firmware (fixes the chroma bleed issue).
 - Allows setting custom viewport values in the DMCU firmware. This can undo the forced cropping of overscan in vWii mode.
+- Allows setting custom scaler options in the DMCU firmware.
 - Allows fully replacing the DMCU firmware using a file loaded from the SD Card (`wiiu/dmcu.d.hex`).
 
 ## Examples
@@ -16,7 +18,11 @@ Note that the plugin will not be active when booting vWii mode using the [Boot S
 **GamePad (viewport adjusted):**  
 <img src="https://i.imgur.com/7jkR2BQ.png" width=600px/>
 
-*Note:* These are not actual GamePad captures, but visualizations of what viewport adjustments do.
+*Note:* These are not actual GamePad captures, but visualizations of what viewport adjustments do.  
+
+**Chroma Bleed (Before and After):**  
+<img src="https://i.imgur.com/PTp6e4C.png" width=600px/>
+<img src="https://i.imgur.com/StIiGAf.png" width=600px/>
 
 ## Building
 For building you need: 

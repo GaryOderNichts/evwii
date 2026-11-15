@@ -13,9 +13,12 @@
 #include <coreinit/mcp.h>
 #include <coreinit/debug.h>
 
+#include <dmcu_d_hex.h>
+#include <OpenDMCUFirm/source/custom.h>
+
 WUPS_PLUGIN_NAME("evWii");
 WUPS_PLUGIN_DESCRIPTION("Patches to enhance the vWii mode");
-WUPS_PLUGIN_VERSION("v0.4");
+WUPS_PLUGIN_VERSION("v1.0");
 WUPS_PLUGIN_AUTHOR("GaryOderNichts");
 WUPS_PLUGIN_LICENSE("GPLv2");
 
@@ -24,6 +27,12 @@ WUPS_USE_WUT_DEVOPTAB();
 
 WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle);
 void ConfigMenuClosedCallback();
+
+enum class DMCUSource : int {
+    OpenDMCUFirm,
+    Stock,
+    SDCard,
+};
 
 struct DMCUViewportAxis {
     uint16_t start;
@@ -78,7 +87,7 @@ static std::pair<const char*, DMCUViewportAxis> viewportHeightPresetsDRC_576i[] 
 
 static bool enable4sPower = true;
 
-static bool dmcuLoadFromSD = false;
+static DMCUSource dmcuSource = DMCUSource::OpenDMCUFirm;
 
 static DMCUViewport dmcuTVViewport = {
     { 8, 704, 720 },
@@ -98,6 +107,14 @@ static DMCUViewport dmcuDRCViewport = {
 static DMCUViewport dmcuDRCViewport_576i = {
     { 8, 704, 720 },
     { 0, 576, 576 },
+};
+
+static ScalerOptions dmcuTVScalerOptions = {
+    .enabled = 0xff, .nearest = 0xff,
+};
+
+static ScalerOptions dmcuDRCScalerOptions = {
+    .enabled = 0xff, .nearest = 0xff,
 };
 
 void Patch_vWii_RTC_CONTROL1(void)
@@ -142,13 +159,13 @@ void Restore_vWii_RTC_CONTROL1(void)
     Mocha_DeInitLibrary();
 }
 
-#define WUPS_ReadUShortWithDefault(__parent__, __key__, __value__) {{                     \
+#define WUPS_ReadIntLikeWithDefault(__parent__, __key__, __value__) {{                    \
     int tmp = 0;                                                                          \
     if (WUPSStorageAPI::GetEx(__parent__, __key__, tmp) == WUPS_STORAGE_ERROR_NOT_FOUND){ \
-        tmp = __value__;                                                                  \
+        tmp = static_cast<int>(__value__);                                                \
         WUPSStorageAPI::StoreEx(__parent__, __key__, tmp);                                \
     } else                                                                                \
-        __value__ = tmp;                                                                  \
+        __value__ = static_cast<decltype(__value__)>(tmp);                                \
 }}
 
 INITIALIZE_PLUGIN()
@@ -161,35 +178,40 @@ INITIALIZE_PLUGIN()
     }
 
     WUPSStorageAPI::GetOrStoreDefault("enable4sPower", enable4sPower, enable4sPower);
-    WUPSStorageAPI::GetOrStoreDefault("dmcuLoadFromSD", dmcuLoadFromSD, dmcuLoadFromSD);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuSource", dmcuSource);
 
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xEnd", dmcuTVViewport.x.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_yEnd", dmcuTVViewport.y.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_xSize", dmcuTVViewport.x.size);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV_ySize", dmcuTVViewport.y.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV_xStart", dmcuTVViewport.x.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV_yStart", dmcuTVViewport.y.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV_xEnd", dmcuTVViewport.x.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV_yEnd", dmcuTVViewport.y.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV_xSize", dmcuTVViewport.x.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV_ySize", dmcuTVViewport.y.size);
 
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV576i_xStart", dmcuTVViewport_576i.x.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV576i_yStart", dmcuTVViewport_576i.y.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV576i_xEnd", dmcuTVViewport_576i.x.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV576i_yEnd", dmcuTVViewport_576i.y.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV576i_xSize", dmcuTVViewport_576i.x.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTV576i_ySize", dmcuTVViewport_576i.y.size);
 
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xStart", dmcuDRCViewport.x.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_yStart", dmcuDRCViewport.y.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xEnd", dmcuDRCViewport.x.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_yEnd", dmcuDRCViewport.y.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_xSize", dmcuDRCViewport.x.size);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC_ySize", dmcuDRCViewport.y.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC_xStart", dmcuDRCViewport.x.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC_yStart", dmcuDRCViewport.y.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC_xEnd", dmcuDRCViewport.x.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC_yEnd", dmcuDRCViewport.y.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC_xSize", dmcuDRCViewport.x.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC_ySize", dmcuDRCViewport.y.size);
 
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
-    WUPS_ReadUShortWithDefault(nullptr, "dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC576i_xStart", dmcuDRCViewport_576i.x.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC576i_yStart", dmcuDRCViewport_576i.y.start);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC576i_xEnd", dmcuDRCViewport_576i.x.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC576i_yEnd", dmcuDRCViewport_576i.y.end);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC576i_xSize", dmcuDRCViewport_576i.x.size);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRC576i_ySize", dmcuDRCViewport_576i.y.size);
+
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTVScalerEnabled", dmcuTVScalerOptions.enabled);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuTVScalerNearest", dmcuTVScalerOptions.nearest);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRCScalerEnabled", dmcuDRCScalerOptions.enabled);
+    WUPS_ReadIntLikeWithDefault(nullptr, "dmcuDRCScalerNearest", dmcuDRCScalerOptions.nearest);
 
     WUPSStorageAPI::SaveStorage();
 
@@ -212,10 +234,10 @@ void enable4sPowerCallback(ConfigItemBoolean* item, bool enabled)
     }
 }
 
-void dmcuLoadFromSDCallback(ConfigItemBoolean* item, bool enabled)
+void dmcuSourceCallback(ConfigItemMultipleValues* item, uint32_t i)
 {
-    dmcuLoadFromSD = enabled;
-    WUPSStorageAPI::Store("dmcuLoadFromSD", enabled);
+    dmcuSource = static_cast<DMCUSource>(i);
+    WUPSStorageAPI::Store<int>("dmcuSource", i);
 }
 
 void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
@@ -275,6 +297,28 @@ void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
     }
 }
 
+void selectDMCUScalerEnabledCallback(ConfigItemMultipleValues* item, uint32_t i)
+{
+    if (strcmp(item->identifier, "dmcuTVScalerEnabled") == 0) {
+        dmcuTVScalerOptions.enabled = i;
+        WUPSStorageAPI::Store<int>("dmcuTVScalerEnabled", i);
+    } else if (strcmp(item->identifier, "dmcuDRCScalerEnabled") == 0) {
+        dmcuDRCScalerOptions.enabled = i;
+        WUPSStorageAPI::Store<int>("dmcuDRCScalerEnabled", i);
+    }
+}
+
+void selectDMCUScalerNearestCallback(ConfigItemMultipleValues* item, uint32_t i)
+{
+    if (strcmp(item->identifier, "dmcuTVScalerNearest") == 0) {
+        dmcuTVScalerOptions.nearest = i;
+        WUPSStorageAPI::Store<int>("dmcuTVScalerNearest", i);
+    } else if (strcmp(item->identifier, "dmcuDRCScalerNearest") == 0) {
+        dmcuDRCScalerOptions.nearest = i;
+        WUPSStorageAPI::Store<int>("dmcuDRCScalerNearest", i);
+    }
+}
+
 WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identifier, const char* displayName,
                                                               const std::span<const std::pair<const char*, DMCUViewportAxis>> presets,
                                                               DMCUViewportAxis curValue)
@@ -302,6 +346,19 @@ WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identi
     return WUPSConfigItemMultipleValues::CreateFromIndex(identifier, displayName, 0, curIdx, pairs, selectDMCUViewportCallback);
 }
 
+WUPSConfigItemMultipleValues CreateDmcuBoolConfigItem(const char* identifier, const char* displayName, uint8_t current,
+                                                      MultipleValuesChangedCallback callback)
+{
+    std::vector<WUPSConfigItemMultipleValues::ValuePair> pairs(3);
+    pairs[0].name = "Keep default";
+    pairs[0].value = 0xff;
+    pairs[1].name = "Enabled";
+    pairs[1].value = 1;
+    pairs[2].name = "Disabled";
+    pairs[2].value = 0;
+    return WUPSConfigItemMultipleValues::CreateFromValue(identifier, displayName, 0, current, pairs, callback);
+}
+
 WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle)
 {
     WUPSConfigCategory root = WUPSConfigCategory(rootHandle);
@@ -314,35 +371,54 @@ WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle ro
                                                      enable4sPower,
                                                      enable4sPowerCallback));
 
-        generalCat.add(WUPSConfigItemBoolean::Create("dmcuLoadFromSD", "Load DMCU Firmware from SD Card",
-                                                     true,
-                                                     dmcuLoadFromSD,
-                                                     dmcuLoadFromSDCallback));
+        std::vector<WUPSConfigItemMultipleValues::ValuePair> sourcePairs(3);
+        sourcePairs[0].name = "OpenDMCUFirm";
+        sourcePairs[0].value = static_cast<uint32_t>(DMCUSource::OpenDMCUFirm);
+        sourcePairs[1].name = "Stock";
+        sourcePairs[1].value = static_cast<uint32_t>(DMCUSource::Stock);
+        sourcePairs[2].name = "SD Card";
+        sourcePairs[2].value = static_cast<uint32_t>(DMCUSource::SDCard);
+        generalCat.add(WUPSConfigItemMultipleValues::CreateFromValue("dmcuSource", "DMCU Source",
+                                                     static_cast<int>(DMCUSource::OpenDMCUFirm), static_cast<int>(dmcuSource),
+                                                     sourcePairs, dmcuSourceCallback));
 
+        auto viewportCat = WUPSConfigCategory::Create("DMCU Viewport");
 
-        auto dcmuCat = WUPSConfigCategory::Create("DMCU");
-
-
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportWidth", "TV Viewport Width",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportWidth", "TV Viewport Width",
                                                      viewportWidthPresetsTV, dmcuTVViewport.x));
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportHeight", "TV Viewport Height",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportHeight", "TV Viewport Height",
                                                      viewportHeightPresetsTV, dmcuTVViewport.y));
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportWidth576i", "TV Viewport Width (576i)",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportWidth576i", "TV Viewport Width (576i)",
                                                      viewportWidthPresetsTV, dmcuTVViewport_576i.x));
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportHeight576i", "TV Viewport Height (576i)",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuTVViewportHeight576i", "TV Viewport Height (576i)",
                                                      viewportHeightPresetsTV_576i, dmcuTVViewport_576i.y));
 
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportWidth", "DRC Viewport Width",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportWidth", "DRC Viewport Width",
                                                      viewportWidthPresetsDRC, dmcuDRCViewport.x));
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportHeight", "DRC Viewport Height",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportHeight", "DRC Viewport Height",
                                                      viewportHeightPresetsDRC, dmcuDRCViewport.y));
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportWidth576i", "DRC Viewport Width (576i)",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportWidth576i", "DRC Viewport Width (576i)",
                                                      viewportWidthPresetsDRC, dmcuDRCViewport_576i.x));
-        dcmuCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportHeight576i", "DRC Viewport Height (576i)",
+        viewportCat.add(CreateDmcuViewportAxisConfigItem("dmcuDRCViewportHeight576i", "DRC Viewport Height (576i)",
                                                      viewportHeightPresetsDRC_576i, dmcuDRCViewport_576i.y));
 
+        auto scalerCat = WUPSConfigCategory::Create("DMCU Scaler");
+
+        scalerCat.add(CreateDmcuBoolConfigItem("dmcuTVScalerEnabled", "TV Scaler Enabled",
+            dmcuTVScalerOptions.enabled, selectDMCUScalerEnabledCallback));
+
+        scalerCat.add(CreateDmcuBoolConfigItem("dmcuTVScalerNearest", "TV Scaler Nearest",
+            dmcuTVScalerOptions.nearest, selectDMCUScalerNearestCallback));
+
+        scalerCat.add(CreateDmcuBoolConfigItem("dmcuDRCScalerEnabled", "DRC Scaler Enabled",
+            dmcuDRCScalerOptions.enabled, selectDMCUScalerEnabledCallback));
+
+        scalerCat.add(CreateDmcuBoolConfigItem("dmcuDRCScalerNearest", "DRC Scaler Nearest",
+            dmcuDRCScalerOptions.nearest, selectDMCUScalerNearestCallback));
+
         root.add(std::move(generalCat));
-        root.add(std::move(dcmuCat));
+        root.add(std::move(viewportCat));
+        root.add(std::move(scalerCat));
     }
     catch (std::exception& e) {
         OSReport("evWii: Creating config menu failed: %s\n", e.what());
@@ -367,193 +443,84 @@ template<typename ...Args> std::string string_format(const std::string& format, 
     return std::string(buf.get(), buf.get() + size - 1);
 }
 
-static std::string GenerateDMCUPatch()
+static std::string GenerateCustomDMCUOptionsBlock()
 {
-#define SPLIT_USHORT(x) x >> 8, x & 0xff
-    std::string patch;
-
-    // TODO find a better way to do those viewport patches
-    // Maybe replace the setviewport function and check for yEnd to determine 576i or not?
-
-    // TV
-    if (dmcuTVViewport.y.start != 0xffff) {
-        patch += string_format("@0A0D CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.start));
-        patch += string_format("@0ADF 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.start));
-        patch += string_format("@1C5D CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.start));
-        patch += string_format("@1DDE CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.start));
+    std::string magic = string_format("\n@3500 %02X %02X", CUSTOM_MAGIC >> 8, CUSTOM_MAGIC & 0xff);
+    if (!std::strstr((const char*)dmcu_d_hex, magic.c_str())) {
+        OSFatal("evWii: Bundled firmware is unsupported");
+        return "";
     }
 
-    if (dmcuTVViewport.x.start != 0xffff) {
-        patch += string_format("@0A11 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
-        patch += string_format("@0AE5 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
-        patch += string_format("@1C61 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
-        patch += string_format("@1DE3 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.start));
+    // Fill OpenDMCUFirm options
+    Customizations custom;
+    custom.magic = CUSTOM_MAGIC;
+
+    // TV Viewport
+    custom.tvViewport.x.start = dmcuTVViewport.x.start;
+    custom.tvViewport.x.size = dmcuTVViewport.x.size;
+    custom.tvViewport.x.end = dmcuTVViewport.x.end;
+    custom.tvViewport.y.start = dmcuTVViewport.y.start;
+    custom.tvViewport.y.size = dmcuTVViewport.y.size;
+    custom.tvViewport.y.end = dmcuTVViewport.y.end;
+
+    // TV Viewport 576i
+    custom.tvViewport_576i.x.start = dmcuTVViewport_576i.x.start;
+    custom.tvViewport_576i.x.size = dmcuTVViewport_576i.x.size;
+    custom.tvViewport_576i.x.end = dmcuTVViewport_576i.x.end;
+    custom.tvViewport_576i.y.start = dmcuTVViewport_576i.y.start;
+    custom.tvViewport_576i.y.size = dmcuTVViewport_576i.y.size;
+    custom.tvViewport_576i.y.end = dmcuTVViewport_576i.y.end;
+
+    // DRC Viewport
+    custom.drcViewport.x.start = dmcuDRCViewport.x.start;
+    custom.drcViewport.x.size = dmcuDRCViewport.x.size;
+    custom.drcViewport.x.end = dmcuDRCViewport.x.end;
+    custom.drcViewport.y.start = dmcuDRCViewport.y.start;
+    custom.drcViewport.y.size = dmcuDRCViewport.y.size;
+    custom.drcViewport.y.end = dmcuDRCViewport.y.end;
+
+    // DRC Viewport 576i
+    custom.drcViewport_576i.x.start = dmcuDRCViewport_576i.x.start;
+    custom.drcViewport_576i.x.size = dmcuDRCViewport_576i.x.size;
+    custom.drcViewport_576i.x.end = dmcuDRCViewport_576i.x.end;
+    custom.drcViewport_576i.y.start = dmcuDRCViewport_576i.y.start;
+    custom.drcViewport_576i.y.size = dmcuDRCViewport_576i.y.size;
+    custom.drcViewport_576i.y.end = dmcuDRCViewport_576i.y.end;
+
+    // Scaler Options
+    custom.tvScaler = dmcuTVScalerOptions;
+    custom.drcScaler = dmcuDRCScalerOptions;
+
+    // Write to string
+    const uint8_t* optionsBytes = reinterpret_cast<const uint8_t*>(&custom);
+    std::string optionsString;
+    size_t i = 0;
+    size_t total = sizeof(custom);
+    while (i < total) {
+        const size_t rowEnd = std::min(total, i + 16);
+
+        optionsString += string_format("@%04X", 0x3500 + i);
+        for (; i < rowEnd; i++) {
+            optionsString += string_format(" %02X", static_cast<unsigned>(optionsBytes[i]));
+        }
+
+        optionsString += "\n";
     }
 
-    if (dmcuTVViewport.y.size != 0xffff) {
-        patch += string_format("@0A21 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.size));
-        patch += string_format("@0AF3 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.size));
-        patch += string_format("@1C71 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.size));
-        patch += string_format("@1DF4 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.size));
-    }
-
-    if (dmcuTVViewport.x.size != 0xffff) {
-        patch += string_format("@0A24 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.size));
-        patch += string_format("@0AF6 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.size));
-        patch += string_format("@1C74 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.size));
-        patch += string_format("@1DF7 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.size));
-    }
-
-    if (dmcuTVViewport.y.end != 0xffff) {
-        patch += string_format("@0A15 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.end));
-        patch += string_format("@0AEB CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.end));
-        patch += string_format("@1C65 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.end));
-        patch += string_format("@1DE8 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.y.end));
-    }
-
-    if (dmcuTVViewport.x.end != 0xffff) {
-        patch += string_format("@0A1B 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.end));
-        patch += string_format("@0AEF CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.end));
-        patch += string_format("@1C6B 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.end));
-        patch += string_format("@1DEE 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport.x.end));
-    }
-
-    if (dmcuTVViewport_576i.y.start != 0xffff) {
-        patch += string_format("@0A9C CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.start));
-        patch += string_format("@1CE3 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.start));
-        patch += string_format("@1E3E CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.start));
-    }
-
-    if (dmcuTVViewport_576i.x.start != 0xffff) {
-        patch += string_format("@0AA1 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.start));
-        patch += string_format("@1CE7 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.start));
-        patch += string_format("@1E42 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.start));
-    }
-
-    if (dmcuTVViewport_576i.y.size != 0xffff) {
-        patch += string_format("@0AB2 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.size));
-        patch += string_format("@1CF7 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.size));
-        patch += string_format("@1E50 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.size));
-    }
-
-    if (dmcuTVViewport_576i.x.size != 0xffff) {
-        patch += string_format("@0AB5 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.size));
-        patch += string_format("@1CFA CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.size));
-        patch += string_format("@1E53 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.size));
-    }
-
-    if (dmcuTVViewport_576i.y.end != 0xffff) {
-        patch += string_format("@0AA6 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.end));
-        patch += string_format("@1CEB 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.end));
-        patch += string_format("@1E46 CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.y.end));
-    }
-
-    if (dmcuTVViewport_576i.x.end != 0xffff) {
-        patch += string_format("@0AAC 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
-        patch += string_format("@1CF1 18 CE %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
-        patch += string_format("@1E4B CC %02X %02X\n", SPLIT_USHORT(dmcuTVViewport_576i.x.end));
-    }
-
-    // DRC
-    if (dmcuDRCViewport.y.start != 0xffff) {
-        patch += string_format("@0965 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.start));
-        patch += string_format("@1C7A CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.start));
-        patch += string_format("@1DFD CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.start));
-    }
-
-    if (dmcuDRCViewport.x.start != 0xffff) {
-        patch += string_format("@0969 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.start));
-        patch += string_format("@1C7E CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.start));
-        patch += string_format("@1E01 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.start));
-    }
-
-    if (dmcuDRCViewport.y.size != 0xffff) {
-        patch += string_format("@0977 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.size));
-        patch += string_format("@1C8C CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.size));
-        patch += string_format("@1E0F CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.size));
-    }
-
-    if (dmcuDRCViewport.x.size != 0xffff) {
-        patch += string_format("@097A CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.size));
-        patch += string_format("@1C8F CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.size));
-        patch += string_format("@1E12 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.size));
-    }
-
-    if (dmcuDRCViewport.y.end != 0xffff) {
-        patch += string_format("@096D CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.end));
-        patch += string_format("@1C82 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.end));
-        patch += string_format("@1E05 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.y.end));
-    }
-
-    if (dmcuDRCViewport.x.end != 0xffff) {
-        patch += string_format("@0972 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.end));
-        patch += string_format("@1C87 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.end));
-        patch += string_format("@1E0A CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport.x.end));
-    }
-
-    if (dmcuDRCViewport_576i.y.start != 0xffff) {
-        patch += string_format("@094E CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.start));
-        patch += string_format("@1D00 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.start));
-        patch += string_format("@1E59 18 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.start));
-    }
-
-    if (dmcuDRCViewport_576i.x.start != 0xffff) {
-        patch += string_format("@0952 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.start));
-        patch += string_format("@1D04 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.start));
-        patch += string_format("@1E5F 18 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.start));
-    }
-
-    if (dmcuDRCViewport_576i.y.size != 0xffff) {
-        patch += string_format("@0960 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.size));
-        patch += string_format("@1D12 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.size));
-        patch += string_format("@1E6D CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.size));
-    }
-
-    if (dmcuDRCViewport_576i.x.size != 0xffff) {
-        //this conflicts with the non-576i xsize
-        //patch += string_format("@097A CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.size));
-        patch += string_format("@1D15 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.size));
-        patch += string_format("@1E70 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.size));
-    }
-
-    if (dmcuDRCViewport_576i.y.end != 0xffff) {
-        patch += string_format("@0956 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.end));
-        patch += string_format("@1D08 CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.end));
-        patch += string_format("@1E65 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.y.end));
-    }
-
-    if (dmcuDRCViewport_576i.x.end != 0xffff) {
-        patch += string_format("@095B CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.end));
-        patch += string_format("@1D0D CC %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.end));
-        patch += string_format("@1E69 CE %02X %02X\n", SPLIT_USHORT(dmcuDRCViewport_576i.x.end));
-    }
-
-#undef SPLIT_USHORT
-    return patch;
+    return optionsString;
 }
-
-// #define LOAD_BUNDLED_DMCU_FW
-#ifdef LOAD_BUNDLED_DMCU_FW
-#include <dmcu_d_hex.h>
-#endif
 
 DECL_FUNCTION(MCPError, MCP_CompatLoadAVFile, int32_t handle, void *ptr, uint32_t *size, MCPCompatAVFile file)
 {
-#ifdef LOAD_BUNDLED_DMCU_FW
-    if (file == MCP_COMPAT_AV_FILE_DMCU) {
-        if (ptr) {
-            memcpy(ptr, dmcu_d_hex, dmcu_d_hex_size);
-        }
-
-        *size = dmcu_d_hex_size;
-        return 0;
+    if (file != MCP_COMPAT_AV_FILE_DMCU) {
+        return real_MCP_CompatLoadAVFile(handle, ptr, size, file);
     }
-#endif
 
     // Check if we should replace the DMCU firmware completely
-    if (file == MCP_COMPAT_AV_FILE_DMCU && dmcuLoadFromSD) {
+    if (dmcuSource == DMCUSource::SDCard) {
         FILE* f = fopen("/vol/external01/wiiu/dmcu.d.hex", "rb");
         if (!f) {
+            OSFatal("evWii: Cannot load wiiu/dmcu.d.hex from SD Card");
             return -1;
         }
 
@@ -572,30 +539,33 @@ DECL_FUNCTION(MCPError, MCP_CompatLoadAVFile, int32_t handle, void *ptr, uint32_
 
         fclose(f);
         return 0;
-    }
-
-    MCPError res = real_MCP_CompatLoadAVFile(handle, ptr, size, file);
-    if (res < 0 || file != MCP_COMPAT_AV_FILE_DMCU) {
-        return res;
-    }
-
-    std::string patch = GenerateDMCUPatch();
-    if (!patch.empty()) {
+    } else if (dmcuSource == DMCUSource::OpenDMCUFirm) {
         if (ptr) {
-            char* buf = (char*) ptr + strlen((char*) ptr);
-
-            // copy patch to the end of the AV file
-            strcpy(buf, patch.c_str());
-            buf += patch.length();
-
-            // Null terminate
-            *buf = '\0';
+            memcpy(ptr, dmcu_d_hex, dmcu_d_hex_size);
         }
 
-        *size += patch.length();
+        *size = dmcu_d_hex_size;
+
+        std::string options = GenerateCustomDMCUOptionsBlock();
+        if (!options.empty()) {
+            if (ptr) {
+                char* buf = (char*) ptr + strlen((char*) ptr);
+
+                // copy options to the end of the AV file
+                strcpy(buf, options.c_str());
+                buf += options.length();
+
+                // Null terminate
+                *buf = '\0';
+            }
+
+            *size += options.length();
+        }
+
+        return 0;
     }
 
-    return res;
+    return real_MCP_CompatLoadAVFile(handle, ptr, size, file);
 }
 
 WUPS_MUST_REPLACE(MCP_CompatLoadAVFile, WUPS_LOADER_LIBRARY_COREINIT, MCP_CompatLoadAVFile);

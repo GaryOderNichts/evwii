@@ -1,0 +1,3 @@
+[submodule "OpenDMCUFirm"]
+	path = OpenDMCUFirm
+	url = https://github.com/GaryOderNichts/OpenDMCUFirm.git

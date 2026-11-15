@@ -220,7 +220,7 @@ void dmcuLoadFromSDCallback(ConfigItemBoolean* item, bool enabled)
 
 void selectDMCUViewportCallback(ConfigItemMultipleValues* item, uint32_t i)
 {
-    if (i == 0xffff) {
+    if (i == 0xffffffff) {
         return;
     }
 
@@ -295,7 +295,7 @@ WUPSConfigItemMultipleValues CreateDmcuViewportAxisConfigItem(const char* identi
         curIdx = numPairs;
 
         auto& customPair = pairs.emplace_back();
-        customPair.value = 0xffff;
+        customPair.value = 0xffffffff;
         customPair.name = "Custom";
     }
 

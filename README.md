@@ -2,11 +2,10 @@
 
 This is a plugin for [Aroma](https://aroma.foryour.cafe) which tries to improve some of the Wii U's virtual Wii features.  
 It works by patching features used for setting up the vWii mode while still in Wii U mode. This also includes [DMCU](https://wiiubrew.org/wiki/Hardware/DMCU) patches.  
-Note that the plugin will not be active when booting vWii mode using the [Boot Selector](https://github.com/wiiu-env/AutobootModule).
 
 ## Features
 - Allows enabling the 4 second power button press to force power off while in vWii mode.
-- Allows using [OpenDMCUFirm](https://github.com/GaryOderNichts/OpenDMCUFirm) as the DMCU firmware, which features several improvements over the default firmware (fixes the chroma bleed issue).
+- Allows using [OpenDMCUFirm](https://github.com/GaryOderNichts/OpenDMCUFirm) as the DMCU firmware, which features several improvements over the default firmware (fixes the chroma bleed issue). OpenDMCUFirm is bundled with evWii and does not need to be downloaded separately.
 - Allows setting custom viewport values in the DMCU firmware. This can undo the forced cropping of overscan in vWii mode.
 - Allows setting custom scaler options in the DMCU firmware.
 - Allows fully replacing the DMCU firmware using a file loaded from the SD Card (`wiiu/dmcu.d.hex`).
